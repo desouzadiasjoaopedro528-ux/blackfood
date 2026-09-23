@@ -133,6 +133,7 @@ th{color:var(--muted);font-weight:600;font-size:12.5px;text-transform:uppercase;
     <div class="navbtn" data-view="entregas">🛵 Entregas</div>
     <div class="navbtn" data-view="pedidos">📋 Pedidos</div>
     <div class="navbtn" data-view="config">⚙️ Configurações</div>
+<div class="navbtn" onclick="fazerLogout()" data-logout="true">🚪 Sair</div>
   </aside>
   <main class="content">
     <div class="topbar"><h1 id="pageTitle">Visão Geral</h1><div style="text-align:right"><div class="clock" id="clock"></div><div class="clock" id="connStatus" style="color:var(--muted)"></div></div></div>
@@ -579,6 +580,12 @@ const permissoes = permissoesPorCargo[perfil.cargo] || [];
 
 // Mostra/esconde os menus conforme o cargo
 document.querySelectorAll('.navbtn').forEach(botao => {
+  // O botão Sair aparece para qualquer usuário autenticado
+  if(botao.dataset.logout === 'true'){
+    botao.style.display = '';
+    return;
+  }
+
   const permitido = permissoes.includes(botao.dataset.view);
   botao.style.display = permitido ? '' : 'none';
 });
