@@ -399,7 +399,11 @@ document.getElementById('comandaModalItens').innerHTML=data.map(item=>{
 document.getElementById('comandaModalTotal').textContent=fmt(total);
 document.getElementById('comandaModal').style.display='flex';
 }
-function nextNumero(){
+function fecharComandaModal(){
+  document.getElementById('comandaModal').style.display='none';
+}
+  
+  function nextNumero(){
   const maiores=orders.map(o=>o.numero||1000);
   return (maiores.length?Math.max(...maiores):1000)+1;
 }
