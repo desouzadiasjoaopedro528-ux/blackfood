@@ -166,6 +166,30 @@ th{color:var(--muted);font-weight:600;font-size:12.5px;text-transform:uppercase;
     </div>
   </div>
 </section>
+    <!-- MODAL DETALHES DA COMANDA -->
+<div id="comandaModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9999;align-items:center;justify-content:center;padding:20px;">
+  <div style="background:#fff;width:100%;max-width:600px;border-radius:12px;padding:24px;max-height:85vh;overflow:auto;">
+    
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:20px;">
+      <h2 id="comandaModalTitulo" style="margin:0;">Comanda</h2>
+      <button type="button" onclick="fecharComandaModal()" style="border:0;background:none;font-size:24px;cursor:pointer;">×</button>
+    </div>
+
+    <div id="comandaModalItens" style="margin-top:20px;">
+      Carregando itens...
+    </div>
+
+    <div style="border-top:1px solid #ddd;margin-top:20px;padding-top:16px;display:flex;justify-content:space-between;font-weight:700;font-size:18px;">
+      <span>Total</span>
+      <span id="comandaModalTotal">R$ 0,00</span>
+    </div>
+
+    <button type="button" class="btn" style="width:100%;margin-top:20px;" disabled>
+      + Adicionar itens
+    </button>
+
+  </div>
+</div>
     <section id="view-novo" class="view">
       <div class="banner" id="novoBanner"></div>
       <div class="toggle-group">
@@ -356,7 +380,24 @@ async function carregarComandas(){
     0
   );
 
-  alert(`${itens}\n\nTOTAL: ${fmt(total)}`);
+  document.getElementById('comandaModalTitulo').textContent=`Comanda #${comandaId}`;
+
+document.getElementById('comandaModalItens').innerHTML=data.map(item=>{
+  const subtotal=Number(item.quantidade)*Number(item.preco_unitario);
+
+  return `
+    <div style="padding:12px 0;border-bottom:1px solid #eee;">
+      <div style="display:flex;justify-content:space-between;gap:20px;">
+        <strong>${item.quantidade}x ${item.nome_produto}</strong>
+        <strong>${fmt(subtotal)}</strong>
+      </div>
+      ${item.observacoes ? `<div style="margin-top:6px;color:#7A736B;">Obs: ${item.observacoes}</div>` : ''}
+    </div>
+  `;
+}).join('');
+
+document.getElementById('comandaModalTotal').textContent=fmt(total);
+document.getElementById('comandaModal').style.display='flex';
 }
 function nextNumero(){
   const maiores=orders.map(o=>o.numero||1000);
