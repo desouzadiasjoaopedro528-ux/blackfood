@@ -102,10 +102,29 @@ th{color:var(--muted);font-weight:600;font-size:12.5px;text-transform:uppercase;
   .content{margin-left:0;padding:18px;}
   .app{flex-direction:column;}
 }
+#authLoading{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:14px;background:var(--bg);}
+.login-screen{position:fixed;inset:0;background:var(--bg);display:none;align-items:center;justify-content:center;}
+.login-card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:36px 32px;width:100%;max-width:340px;box-shadow:0 4px 18px rgba(0,0,0,.06);}
+.login-card .brand{padding:0 0 22px;text-align:center;font-size:26px;}
+.login-error{background:var(--red-bg);color:var(--red);padding:9px 12px;border-radius:8px;font-size:13px;margin-top:12px;display:none;}
 </style>
 </head>
 <body>
-<div class="app">
+<div id="authLoading">Carregando...</div>
+
+<div id="loginScreen" class="login-screen">
+  <form class="login-card" onsubmit="fazerLogin(event)">
+    <div class="brand">Black<span>Food</span></div>
+    <label>E-mail</label>
+    <input type="email" id="loginEmail" required autocomplete="username">
+    <label>Senha</label>
+    <input type="password" id="loginSenha" required autocomplete="current-password">
+    <button type="submit" class="btn" style="width:100%;margin-top:16px;padding:12px;">ENTRAR</button>
+    <div class="login-error" id="loginError"></div>
+  </form>
+</div>
+
+<div class="app" id="appRoot" style="display:none">
   <aside class="sidebar">
     <div class="brand">Black<span>Food</span></div>
     <div class="navbtn active" data-view="geral">📊 Visão Geral</div>
@@ -184,6 +203,11 @@ th{color:var(--muted);font-weight:600;font-size:12.5px;text-transform:uppercase;
     </section>
 
     <section id="view-config" class="view">
+      <div class="section-block">
+        <h2 style="margin-top:0">Usuário conectado</h2>
+        <p style="font-size:14px;color:var(--muted)" id="cfgUserEmail">-</p>
+        <button class="btn red" onclick="fazerLogout()">Sair</button>
+      </div>
       <div class="section-block">
         <h2 style="margin-top:0">Dados da lanchonete</h2>
         <label>Nome exibido no sistema</label>
@@ -485,17 +509,71 @@ function tickClock(){
 setInterval(tickClock,1000*20);
 tickClock();
 
-// Realtime: quando qualquer dispositivo criar/alterar um pedido, todos atualizam sozinhos
-sb.channel('pedidos-realtime')
-  .on('postgres_changes',{event:'*',schema:'public',table:'pedidos'},()=>{refreshFromSupabase();})
-  .subscribe();
+// ====== AUTENTICAÇÃO (Supabase Auth) ======
+let realtimeChannel=null;
+
+function showApp(){
+  document.getElementById('authLoading').style.display='none';
+  document.getElementById('loginScreen').style.display='none';
+  document.getElementById('appRoot').style.display='flex';
+}
+function showLogin(){
+  document.getElementById('authLoading').style.display='none';
+  document.getElementById('appRoot').style.display='none';
+  document.getElementById('loginScreen').style.display='flex';
+  document.getElementById('loginError').style.display='none';
+  orders=[]; // limpa os pedidos em memória ao sair
+  if(realtimeChannel){sb.removeChannel(realtimeChannel);realtimeChannel=null;}
+}
+
+// Só é chamada depois de confirmar que existe sessão válida
+async function startApp(session){
+  document.getElementById('cfgUserEmail').textContent=session.user.email;
+  showApp();
+  setConnStatus('Conectando ao Supabase...');
+  await refreshFromSupabase();
+  if(!realtimeChannel){
+    realtimeChannel=sb.channel('pedidos-realtime')
+      .on('postgres_changes',{event:'*',schema:'public',table:'pedidos'},()=>{refreshFromSupabase();})
+      .subscribe();
+  }
+}
+
+async function fazerLogin(e){
+  e.preventDefault();
+  const email=document.getElementById('loginEmail').value.trim();
+  const senha=document.getElementById('loginSenha').value;
+  const errEl=document.getElementById('loginError');
+  errEl.style.display='none';
+  const {error}=await sb.auth.signInWithPassword({email,password:senha});
+  if(error){
+    errEl.textContent='E-mail ou senha inválidos.';
+    errEl.style.display='block';
+  }
+  // Se der certo, o onAuthStateChange abaixo cuida de mostrar o painel.
+}
+
+async function fazerLogout(){
+  await sb.auth.signOut();
+  // O onAuthStateChange abaixo cuida de voltar para a tela de login.
+}
+
+// Mantém a interface sincronizada com o estado de login/logout
+sb.auth.onAuthStateChange((_event,session)=>{
+  if(session){startApp(session);} else {showLogin();}
+});
+
+// Verificação inicial da sessão - o painel NÃO aparece antes disso terminar
+async function initAuth(){
+  const {data:{session}}=await sb.auth.getSession();
+  if(session){await startApp(session);} else {showLogin();}
+}
 
 // init
 const savedName=localStorage.getItem('bf_storename');
 if(savedName){document.getElementById('cfgNome').value=savedName;}
 renderProdGrid();renderCart();renderClienteBox();
-setConnStatus('Conectando ao Supabase...');
-refreshFromSupabase();
+initAuth();
 </script>
 </body>
 </html>
