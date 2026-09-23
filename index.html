@@ -567,6 +567,27 @@ async function startApp(session){
   // Guarda o perfil carregado para usarmos nas permissões por cargo.
   window.blackFoodPerfil = perfil;
 
+// ====== PERMISSÕES VISUAIS POR CARGO ======
+const permissoesPorCargo = {
+  admin: ['geral','novo','cozinha','entregas','pedidos','config'],
+  atendente: ['geral','novo','pedidos'],
+  cozinha: ['cozinha'],
+  entregador: ['entregas']
+};
+
+const permissoes = permissoesPorCargo[perfil.cargo] || [];
+
+// Mostra/esconde os menus conforme o cargo
+document.querySelectorAll('.navbtn').forEach(botao => {
+  const permitido = permissoes.includes(botao.dataset.view);
+  botao.style.display = permitido ? '' : 'none';
+});
+
+// Abre automaticamente a primeira tela permitida
+if(permissoes.length > 0){
+  showView(permissoes[0]);
+}
+
   // Mostra nome, cargo e e-mail nas configurações.
   document.getElementById('cfgUserEmail').innerHTML =
     '<b>' + (perfil.nome || 'Usuário') + '</b>' +
