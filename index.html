@@ -314,15 +314,49 @@ async function carregarComandas(){
   }
 
   lista.innerHTML=data.map(c=>`
-    <div class="order-card">
-      <div>
-        <strong>Comanda #${c.numero}</strong>
-        <div>${c.cliente_nome || 'Cliente sem nome'}</div>
-        <small>${c.mesa ? 'Mesa '+c.mesa : 'Sem mesa informada'}</small>
-      </div>
-      <span class="badge">${c.status}</span>
+  <div class="order-card" onclick="abrirComanda(${c.id})" style="cursor:pointer">
+    <div>
+      <strong>Comanda #${c.numero}</strong>
+      <div>${c.cliente_nome || 'Cliente sem nome'}</div>
+      <small>${c.mesa ? 'Mesa '+c.mesa : 'Sem mesa informada'}</small>
     </div>
-  `).join('');
+    <div style="display:flex;align-items:center;gap:10px">
+      <span class="badge">${c.status}</span>
+      <strong>Ver itens →</strong>
+    </div>
+  </div>
+`).join('');
+}
+
+  async function abrirComanda(comandaId){
+  const {data,error}=await sb
+    .from('comanda_itens')
+    .select('id,nome_produto,quantidade,preco_unitario,observacoes,status')
+    .eq('comanda_id',comandaId)
+    .order('id',{ascending:true});
+
+  if(error){
+    console.error('Erro ao carregar itens da comanda:',error);
+    alert('Não foi possível carregar os itens da comanda.');
+    return;
+  }
+
+  if(!data || data.length===0){
+    alert('Esta comanda ainda não possui itens.');
+    return;
+  }
+
+  const itens=data.map(item=>{
+    const subtotal=Number(item.quantidade)*Number(item.preco_unitario);
+    return `${item.quantidade}x ${item.nome_produto} — ${fmt(subtotal)}${item.observacoes ? '\nObs: '+item.observacoes : ''}`;
+  }).join('\n\n');
+
+  const total=data.reduce(
+    (soma,item)=>soma+(Number(item.quantidade)*Number(item.preco_unitario)),
+    0
+  );
+
+  alert(`${itens}\n\nTOTAL: ${fmt(total)}`);
 }
 function nextNumero(){
   const maiores=orders.map(o=>o.numero||1000);
