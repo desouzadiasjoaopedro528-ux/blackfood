@@ -526,15 +526,66 @@ function showLogin(){
   if(realtimeChannel){sb.removeChannel(realtimeChannel);realtimeChannel=null;}
 }
 
+
+
 // Só é chamada depois de confirmar que existe sessão válida
 async function startApp(session){
-  document.getElementById('cfgUserEmail').textContent=session.user.email;
+  const errEl = document.getElementById('loginError');
+
+  // Mantém o painel escondido enquanto valida o perfil.
+  document.getElementById('authLoading').style.display='flex';
+  document.getElementById('loginScreen').style.display='none';
+  document.getElementById('appRoot').style.display='none';
+
+  // Procura somente o perfil do usuário autenticado.
+  const {data: perfil, error: perfilError} = await sb
+    .from('perfis')
+    .select('id,nome,cargo,ativo')
+    .eq('id', session.user.id)
+    .single();
+
+  if(perfilError || !perfil){
+    console.error('Erro ao carregar perfil:', perfilError);
+
+    await sb.auth.signOut();
+
+    showLogin();
+    errEl.textContent='Seu usuário não possui um perfil autorizado no BlackFood.';
+    errEl.style.display='block';
+    return;
+  }
+
+  if(perfil.ativo !== true){
+    await sb.auth.signOut();
+
+    showLogin();
+    errEl.textContent='Seu acesso ao BlackFood está desativado.';
+    errEl.style.display='block';
+    return;
+  }
+
+  // Guarda o perfil carregado para usarmos nas permissões por cargo.
+  window.blackFoodPerfil = perfil;
+
+  // Mostra nome, cargo e e-mail nas configurações.
+  document.getElementById('cfgUserEmail').innerHTML =
+    '<b>' + (perfil.nome || 'Usuário') + '</b>' +
+    ' · ' + (perfil.cargo || 'sem cargo') +
+    '<br>' + session.user.email;
+
+  // Perfil válido: agora sim libera o sistema.
   showApp();
+
   setConnStatus('Conectando ao Supabase...');
   await refreshFromSupabase();
+
   if(!realtimeChannel){
     realtimeChannel=sb.channel('pedidos-realtime')
-      .on('postgres_changes',{event:'*',schema:'public',table:'pedidos'},()=>{refreshFromSupabase();})
+      .on(
+        'postgres_changes',
+        {event:'*',schema:'public',table:'pedidos'},
+        ()=>{refreshFromSupabase();}
+      )
       .subscribe();
   }
 }
