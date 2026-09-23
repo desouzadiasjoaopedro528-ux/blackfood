@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BlackFood</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<style>
+:root{
+  --bg:#F5F2EC; --surface:#FFFFFF; --ink:#241F1B; --muted:#7A736B; --line:#E6E0D6;
+  --amber:#D89A3C; --amber-dark:#A9721F; --green:#3E7A5D; --green-bg:#E7F1EC;
+  --red:#C1453A; --red-bg:#FBEAE8; --blue:#3B6E91; --blue-bg:#E8F1F6;
+  --side:#211C18; --side-ink:#F1E9DE; --radius:10px;
+}
+*{box-sizing:border-box;}
+body{margin:0;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--ink);}
+.app{display:flex;min-height:100vh;}
+.sidebar{width:220px;background:var(--side);color:var(--side-ink);flex-shrink:0;display:flex;flex-direction:column;padding:20px 0;position:fixed;top:0;bottom:0;left:0;overflow-y:auto;}
+.brand{font-size:22px;font-weight:700;padding:0 20px 20px;letter-spacing:.5px;}
+.brand span{color:var(--amber);}
+.navbtn{display:flex;align-items:center;gap:10px;padding:13px 20px;color:#CFC6B8;text-decoration:none;cursor:pointer;border-left:3px solid transparent;font-size:15px;}
+.navbtn:hover{background:#2C2620;}
+.navbtn.active{background:#2C2620;color:#fff;border-left:3px solid var(--amber);}
+.content{margin-left:220px;flex:1;padding:26px 30px 60px;max-width:1200px;}
+.topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:22px;flex-wrap:wrap;gap:8px;}
+.topbar h1{font-size:24px;margin:0;}
+.topbar .clock{color:var(--muted);font-size:14px;}
+.view{display:none;}
+.view.active{display:block;}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:14px;margin-bottom:24px;}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:16px 18px;}
+.card .num{font-size:26px;font-weight:700;}
+.card .lbl{color:var(--muted);font-size:13px;margin-top:4px;}
+h2{font-size:19px;margin:26px 0 14px;}
+.section-block{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:20px;margin-bottom:20px;}
+.btn{background:var(--amber);color:#241F1B;border:none;padding:10px 16px;border-radius:8px;font-weight:600;cursor:pointer;font-size:14px;}
+.btn:hover{background:var(--amber-dark);color:#fff;}
+.btn.secondary{background:var(--surface);border:1px solid var(--line);color:var(--ink);}
+.btn.green{background:var(--green);color:#fff;}
+.btn.blue{background:var(--blue);color:#fff;}
+.btn.red{background:var(--red);color:#fff;}
+.btn.small{padding:6px 10px;font-size:13px;}
+.toggle-group{display:flex;gap:10px;margin-bottom:18px;}
+.toggle-group button{flex:1;padding:14px;border-radius:8px;border:2px solid var(--line);background:var(--surface);cursor:pointer;font-size:15px;font-weight:600;color:var(--muted);}
+.toggle-group button.active{border-color:var(--amber);color:var(--ink);background:#FBF3E4;}
+.prod-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:12px;}
+.prod-card{border:1px solid var(--line);border-radius:8px;padding:12px;background:var(--surface);}
+.prod-card .pname{font-weight:600;font-size:14.5px;}
+.prod-card .pprice{color:var(--muted);font-size:13px;margin-bottom:8px;}
+.qty-row{display:flex;align-items:center;gap:8px;margin-bottom:6px;}
+.qty-row button{width:28px;height:28px;border-radius:6px;border:1px solid var(--line);background:#fff;cursor:pointer;font-size:16px;}
+.qty-row .qtyval{min-width:22px;text-align:center;font-weight:600;}
+.prod-card input[type=text]{width:100%;padding:6px 8px;font-size:13px;border:1px solid var(--line);border-radius:6px;}
+input,select{font-family:inherit;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font-size:14px;width:100%;}
+label{display:block;font-size:13px;color:var(--muted);margin:10px 0 4px;}
+.formgrid{display:grid;grid-template-columns:1fr 1fr;gap:0 14px;}
+.formgrid .full{grid-column:1/-1;}
+.paybtns{display:flex;gap:8px;flex-wrap:wrap;margin-top:4px;}
+.paybtns button{padding:8px 14px;border-radius:20px;border:1px solid var(--line);background:#fff;cursor:pointer;font-size:13px;}
+.paybtns button.active{background:var(--ink);color:#fff;border-color:var(--ink);}
+.cart-summary{position:sticky;top:0;}
+.cart-item{display:flex;justify-content:space-between;font-size:14px;padding:6px 0;border-bottom:1px solid var(--line);}
+.cart-total{display:flex;justify-content:space-between;font-size:19px;font-weight:700;margin-top:12px;padding-top:12px;border-top:2px solid var(--ink);}
+.layout2{display:grid;grid-template-columns:2fr 1fr;gap:20px;align-items:start;}
+.banner{padding:12px 16px;border-radius:8px;background:var(--green-bg);color:var(--green);font-weight:600;margin-bottom:16px;display:none;}
+.banner.show{display:block;}
+.kanban{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;}
+.kcol h3{font-size:14px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin-bottom:10px;}
+.kcol{background:#EFEAE1;border-radius:10px;padding:12px;min-height:120px;}
+.ticket{background:var(--surface);border-radius:8px;padding:12px;margin-bottom:10px;border-left:4px solid var(--amber);box-shadow:0 1px 2px rgba(0,0,0,.05);}
+.ticket .thead{display:flex;justify-content:space-between;font-weight:700;font-size:14px;margin-bottom:4px;}
+.ticket .ttype{font-size:11px;padding:2px 7px;border-radius:10px;background:var(--blue-bg);color:var(--blue);font-weight:600;}
+.ticket .ttype.delivery{background:var(--red-bg);color:var(--red);}
+.ticket ul{margin:6px 0;padding-left:18px;font-size:13.5px;}
+.ticket .obs{font-size:12.5px;color:var(--muted);font-style:italic;}
+.ticket .time{font-size:12px;color:var(--muted);margin-top:4px;}
+.ticket .actions{margin-top:10px;display:flex;gap:6px;}
+.empty{color:var(--muted);font-size:13.5px;padding:10px 0;}
+table{width:100%;border-collapse:collapse;font-size:14px;}
+th,td{text-align:left;padding:10px 8px;border-bottom:1px solid var(--line);}
+th{color:var(--muted);font-weight:600;font-size:12.5px;text-transform:uppercase;}
+.badge{padding:3px 9px;border-radius:12px;font-size:12px;font-weight:600;}
+.badge.novo{background:var(--blue-bg);color:var(--blue);}
+.badge.preparando{background:#FBF0DC;color:var(--amber-dark);}
+.badge.pronto{background:var(--green-bg);color:var(--green);}
+.badge.saiu_entrega{background:var(--red-bg);color:var(--red);}
+.badge.entregue{background:#EAEAEA;color:#555;}
+.deliv-card{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px;margin-bottom:14px;}
+.deliv-card .top{display:flex;justify-content:space-between;margin-bottom:8px;}
+.deliv-card .field{font-size:13.5px;margin-bottom:3px;}
+.deliv-card .field b{color:var(--muted);font-weight:600;}
+@media(max-width:900px){
+  .layout2{grid-template-columns:1fr;}
+  .kanban{grid-template-columns:1fr;}
+  .formgrid{grid-template-columns:1fr;}
+}
+@media(max-width:700px){
+  .sidebar{position:static;width:100%;flex-direction:row;overflow-x:auto;padding:8px;}
+  .brand{display:none;}
+  .navbtn{flex-direction:column;font-size:11px;gap:3px;padding:8px 12px;border-left:none;border-bottom:3px solid transparent;white-space:nowrap;}
+  .navbtn.active{border-left:none;border-bottom:3px solid var(--amber);}
+  .content{margin-left:0;padding:18px;}
+  .app{flex-direction:column;}
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand">Black<span>Food</span></div>
+    <div class="navbtn active" data-view="geral">📊 Visão Geral</div>
+    <div class="navbtn" data-view="novo">➕ Novo Pedido</div>
+    <div class="navbtn" data-view="cozinha">🍳 Cozinha</div>
+    <div class="navbtn" data-view="entregas">🛵 Entregas</div>
+    <div class="navbtn" data-view="pedidos">📋 Pedidos</div>
+    <div class="navbtn" data-view="config">⚙️ Configurações</div>
+  </aside>
+  <main class="content">
+    <div class="topbar"><h1 id="pageTitle">Visão Geral</h1><div style="text-align:right"><div class="clock" id="clock"></div><div class="clock" id="connStatus" style="color:var(--muted)"></div></div></div>
+
+    <section id="view-geral" class="view active">
+      <div class="cards">
+        <div class="card"><div class="num" id="gFat">R$ 0,00</div><div class="lbl">Faturamento hoje</div></div>
+        <div class="card"><div class="num" id="gQtd">0</div><div class="lbl">Pedidos hoje</div></div>
+        <div class="card"><div class="num" id="gPrep">0</div><div class="lbl">Preparando</div></div>
+        <div class="card"><div class="num" id="gPronto">0</div><div class="lbl">Prontos</div></div>
+        <div class="card"><div class="num" id="gEntrega">0</div><div class="lbl">Em entrega</div></div>
+        <div class="card"><div class="num" id="gTicket">R$ 0,00</div><div class="lbl">Ticket médio</div></div>
+      </div>
+      <div class="section-block">
+        <h2 style="margin-top:0">Últimos pedidos</h2>
+        <div id="gLista"></div>
+      </div>
+    </section>
+
+    <section id="view-novo" class="view">
+      <div class="banner" id="novoBanner"></div>
+      <div class="toggle-group">
+        <button id="btnBalcao" class="active" onclick="setTipo('balcao')">🧾 Balcão</button>
+        <button id="btnDelivery" onclick="setTipo('delivery')">🛵 Delivery</button>
+      </div>
+      <div class="layout2">
+        <div>
+          <div class="section-block">
+            <h2 style="margin-top:0">Produtos</h2>
+            <div class="prod-grid" id="prodGrid"></div>
+          </div>
+          <div class="section-block" id="clienteBox"></div>
+        </div>
+        <div class="section-block cart-summary">
+          <h2 style="margin-top:0">Resumo do pedido</h2>
+          <div id="cartItems"><div class="empty">Nenhum item selecionado</div></div>
+          <div class="cart-total"><span>Total</span><span id="cartTotal">R$ 0,00</span></div>
+          <button class="btn" style="width:100%;margin-top:16px;padding:13px;" onclick="confirmarPedido()">Confirmar Pedido</button>
+        </div>
+      </div>
+    </section>
+
+    <section id="view-cozinha" class="view">
+      <div class="kanban">
+        <div class="kcol"><h3>Novos</h3><div id="colNovo"></div></div>
+        <div class="kcol"><h3>Preparando</h3><div id="colPrep"></div></div>
+        <div class="kcol"><h3>Prontos</h3><div id="colPronto"></div></div>
+      </div>
+    </section>
+
+    <section id="view-entregas" class="view">
+      <div id="entregasLista"></div>
+    </section>
+
+    <section id="view-pedidos" class="view">
+      <div class="section-block">
+        <label>Filtrar por status</label>
+        <select id="filtroStatus" onchange="renderPedidos()" style="max-width:220px">
+          <option value="">Todos</option>
+          <option value="novo">Novo</option>
+          <option value="preparando">Preparando</option>
+          <option value="pronto">Pronto</option>
+          <option value="saiu_entrega">Saiu para entrega</option>
+          <option value="entregue">Entregue</option>
+        </select>
+      </div>
+      <div class="section-block"><table><thead><tr><th>#</th><th>Tipo</th><th>Cliente</th><th>Itens</th><th>Total</th><th>Status</th><th>Hora</th></tr></thead><tbody id="pedidosBody"></tbody></table></div>
+    </section>
+
+    <section id="view-config" class="view">
+      <div class="section-block">
+        <h2 style="margin-top:0">Dados da lanchonete</h2>
+        <label>Nome exibido no sistema</label>
+        <input type="text" id="cfgNome" style="max-width:320px">
+        <button class="btn" style="margin-top:12px" onclick="salvarConfig()">Salvar</button>
+      </div>
+      <div class="section-block">
+        <h2 style="margin-top:0">Demonstração</h2>
+        <p style="color:var(--muted);font-size:14px">Os pedidos ficam salvos no navegador (localStorage). Use o botão abaixo para apagar tudo e recomeçar a demonstração do zero.</p>
+        <button class="btn red" onclick="resetarDados()">Apagar todos os pedidos</button>
+      </div>
+    </section>
+  </main>
+</div>
+
+<script>
+const PRODUTOS=[
+  {id:'xburger',nome:'X-Burger',preco:20},
+  {id:'xbacon',nome:'X-Bacon',preco:25},
+  {id:'xsalada',nome:'X-Salada',preco:22},
+  {id:'batata',nome:'Batata Frita',preco:15},
+  {id:'cocalata',nome:'Coca-Cola Lata',preco:6},
+  {id:'coca2l',nome:'Coca-Cola 2L',preco:12},
+];
+let qtyState={}, obsState={};
+PRODUTOS.forEach(p=>{qtyState[p.id]=0;obsState[p.id]='';});
+let tipoAtual='balcao';
+let pagamentoAtual=null;
+
+// ====== CONFIGURAÇÃO DO SUPABASE ======
+// Cole aqui a URL e a Publishable Key do seu projeto Supabase:
+const SUPABASE_URL = 'https://hxtauwzqpfnasdqzcfqz.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_l0tXwgHKCIJy89kCbNel6Q_x2MWOggU';
+// =======================================
+
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+let orders=[]; // cache local dos pedidos vindos do Supabase
+
+function dbToOrder(row){
+  return {
+    id:row.id,
+    numero:row.numero,
+    tipo:row.tipo,
+    cliente:row.cliente_nome||'',
+    telefone:row.cliente_telefone||'',
+    endereco:{rua:row.rua||'',numero:row.numero_endereco||'',bairro:row.bairro||'',complemento:row.complemento||''},
+    pagamento:row.forma_pagamento,
+    troco:row.troco_para,
+    itens:row.itens||[],
+    total:Number(row.valor_total)||0,
+    status:row.status,
+    criadoEm:row.criado_em?new Date(row.criado_em).getTime():Date.now(),
+  };
+}
+
+function setConnStatus(msg,isError){
+  const el=document.getElementById('connStatus');
+  if(el){el.textContent=msg;el.style.color=isError?'var(--red)':'var(--muted)';}
+}
+
+async function refreshFromSupabase(){
+  const {data,error}=await sb.from('pedidos').select('*').order('criado_em',{ascending:true});
+  if(error){setConnStatus('Erro ao conectar ao Supabase',true);console.error(error);return;}
+  orders=data.map(dbToOrder);
+  setConnStatus('');
+  renderAll();
+}
+
+function nextNumero(){
+  const maiores=orders.map(o=>o.numero||1000);
+  return (maiores.length?Math.max(...maiores):1000)+1;
+}
+
+function fmt(v){return 'R$ '+v.toFixed(2).replace('.',',');}
+
+function showView(id){
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  document.getElementById('view-'+id).classList.add('active');
+  document.querySelectorAll('.navbtn').forEach(b=>b.classList.toggle('active',b.dataset.view===id));
+  const titles={geral:'Visão Geral',novo:'Novo Pedido',cozinha:'Cozinha',entregas:'Entregas',pedidos:'Pedidos',config:'Configurações'};
+  document.getElementById('pageTitle').textContent=titles[id];
+  renderAll();
+}
+document.querySelectorAll('.navbtn').forEach(b=>b.addEventListener('click',()=>showView(b.dataset.view)));
+
+function setTipo(t){
+  tipoAtual=t;
+  document.getElementById('btnBalcao').classList.toggle('active',t==='balcao');
+  document.getElementById('btnDelivery').classList.toggle('active',t==='delivery');
+  renderClienteBox();
+}
+
+function renderProdGrid(){
+  const g=document.getElementById('prodGrid');
+  g.innerHTML=PRODUTOS.map(p=>`
+    <div class="prod-card">
+      <div class="pname">${p.nome}</div>
+      <div class="pprice">${fmt(p.preco)}</div>
+      <div class="qty-row">
+        <button onclick="changeQty('${p.id}',-1)">−</button>
+        <span class="qtyval" id="qty-${p.id}">${qtyState[p.id]}</span>
+        <button onclick="changeQty('${p.id}',1)">+</button>
+      </div>
+      <input type="text" placeholder="Observação (opcional)" value="${obsState[p.id]}" oninput="obsState['${p.id}']=this.value">
+    </div>`).join('');
+}
+function changeQty(id,d){
+  qtyState[id]=Math.max(0,qtyState[id]+d);
+  document.getElementById('qty-'+id).textContent=qtyState[id];
+  renderCart();
+}
+function renderCart(){
+  const itens=PRODUTOS.filter(p=>qtyState[p.id]>0);
+  const box=document.getElementById('cartItems');
+  if(itens.length===0){box.innerHTML='<div class="empty">Nenhum item selecionado</div>';}
+  else{box.innerHTML=itens.map(p=>`<div class="cart-item"><span>${qtyState[p.id]}x ${p.nome}</span><span>${fmt(p.preco*qtyState[p.id])}</span></div>`).join('');}
+  const total=itens.reduce((s,p)=>s+p.preco*qtyState[p.id],0);
+  document.getElementById('cartTotal').textContent=fmt(total);
+  return total;
+}
+
+function payButtons(options){
+  return `<div class="paybtns">${options.map(o=>`<button type="button" data-pay="${o}" onclick="selecionarPagamento('${o}',this)">${o}</button>`).join('')}</div>`;
+}
+function selecionarPagamento(p,el){
+  pagamentoAtual=p;
+  el.parentElement.querySelectorAll('button').forEach(b=>b.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('trocoBox') && (document.getElementById('trocoBox').style.display = (tipoAtual==='delivery'&&p==='Dinheiro')?'block':'none');
+}
+function renderClienteBox(){
+  const box=document.getElementById('clienteBox');
+  if(tipoAtual==='balcao'){
+    box.innerHTML=`<h2 style="margin-top:0">Cliente (Balcão)</h2>
+      <label>Nome (opcional)</label><input type="text" id="cNome">
+      <label>Forma de pagamento</label>${payButtons(['Dinheiro','PIX','Débito','Crédito'])}`;
+  }else{
+    box.innerHTML=`<h2 style="margin-top:0">Cliente (Delivery)</h2>
+      <div class="formgrid">
+        <div><label>Nome *</label><input type="text" id="cNome"></div>
+        <div><label>Telefone *</label><input type="text" id="cTelefone"></div>
+        <div><label>Rua *</label><input type="text" id="cRua"></div>
+        <div><label>Número *</label><input type="text" id="cNumero"></div>
+        <div><label>Bairro *</label><input type="text" id="cBairro"></div>
+        <div><label>Complemento</label><input type="text" id="cComplemento"></div>
+      </div>
+      <label>Forma de pagamento *</label>${payButtons(['Dinheiro','PIX','Débito','Crédito'])}
+      <div id="trocoBox" style="display:none">
+        <label>Troco para quanto?</label><input type="text" id="cTroco" placeholder="Ex: 50,00">
+      </div>`;
+  }
+  pagamentoAtual=null;
+}
+
+async function confirmarPedido(){
+  const itens=PRODUTOS.filter(p=>qtyState[p.id]>0).map(p=>({nome:p.nome,preco:p.preco,qtd:qtyState[p.id],obs:obsState[p.id]}));
+  if(itens.length===0){alert('Selecione ao menos um produto.');return;}
+  if(!pagamentoAtual){alert('Selecione a forma de pagamento.');return;}
+  const total=itens.reduce((s,i)=>s+i.preco*i.qtd,0);
+  let cliente=(document.getElementById('cNome')||{}).value||'';
+  let endereco={rua:'',numero:'',bairro:'',complemento:''};
+  let telefone='';
+  let troco=null;
+  if(tipoAtual==='delivery'){
+    telefone=document.getElementById('cTelefone').value;
+    const rua=document.getElementById('cRua').value;
+    const num=document.getElementById('cNumero').value;
+    const bairro=document.getElementById('cBairro').value;
+    if(!cliente||!telefone||!rua||!num||!bairro){alert('Preencha os campos obrigatórios (*) do delivery.');return;}
+    endereco={rua,numero:num,bairro,complemento:document.getElementById('cComplemento').value};
+    if(pagamentoAtual==='Dinheiro'){troco=document.getElementById('cTroco').value||'';}
+  }
+  const numero=nextNumero();
+  const observacoes=itens.filter(i=>i.obs).map(i=>i.nome+': '+i.obs).join(' | ')||null;
+  const agora=new Date().toISOString();
+  const row={
+    numero,tipo:tipoAtual,status:'novo',
+    cliente_nome:cliente,cliente_telefone:telefone,
+    rua:endereco.rua||null,numero_endereco:endereco.numero||null,bairro:endereco.bairro||null,complemento:endereco.complemento||null,
+    forma_pagamento:pagamentoAtual,troco_para:troco,
+    itens,observacoes,valor_total:total,
+    criado_em:agora,atualizado_em:agora
+  };
+  const {error}=await sb.from('pedidos').insert([row]);
+  if(error){alert('Não foi possível salvar o pedido no Supabase. Verifique a URL/Key e sua conexão.');console.error(error);return;}
+  PRODUTOS.forEach(p=>{qtyState[p.id]=0;obsState[p.id]='';});
+  const banner=document.getElementById('novoBanner');
+  banner.textContent='Pedido #'+numero+' criado com sucesso!';
+  banner.classList.add('show');
+  setTimeout(()=>banner.classList.remove('show'),4000);
+  renderProdGrid();renderCart();renderClienteBox();
+  await refreshFromSupabase();
+}
+
+function statusLabel(s){return {novo:'Novo',preparando:'Preparando',pronto:'Pronto',saiu_entrega:'Saiu p/ entrega',entregue:'Entregue'}[s];}
+
+function ticketHtml(o,botoes){
+  const itensHtml=o.itens.map(i=>`<li>${i.qtd}x ${i.nome}${i.obs?` <span class="obs">(${i.obs})</span>`:''}</li>`).join('');
+  const hora=new Date(o.criadoEm).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+  return `<div class="ticket">
+    <div class="thead"><span>#${o.numero}</span><span class="ttype ${o.tipo}">${o.tipo==='balcao'?'Balcão':'Delivery'}</span></div>
+    <ul>${itensHtml}</ul>
+    <div class="time">🕒 ${hora}</div>
+    <div class="actions">${botoes}</div>
+  </div>`;
+}
+
+async function updateStatus(id,novoStatus){
+  const {error}=await sb.from('pedidos').update({status:novoStatus,atualizado_em:new Date().toISOString()}).eq('id',id);
+  if(error){alert('Não foi possível atualizar o pedido no Supabase.');console.error(error);return;}
+  await refreshFromSupabase();
+}
+
+function renderCozinha(){
+  const novos=orders.filter(o=>o.status==='novo');
+  const prep=orders.filter(o=>o.status==='preparando');
+  const prontos=orders.filter(o=>o.status==='pronto');
+  document.getElementById('colNovo').innerHTML=novos.length?novos.map(o=>ticketHtml(o,`<button class="btn small" onclick="updateStatus('${o.id}','preparando')">Iniciar Preparo</button>`)).join(''):'<div class="empty">Nenhum pedido novo</div>';
+  document.getElementById('colPrep').innerHTML=prep.length?prep.map(o=>ticketHtml(o,`<button class="btn green small" onclick="updateStatus('${o.id}','pronto')">Pedido Pronto</button>`)).join(''):'<div class="empty">Nada em preparo</div>';
+  document.getElementById('colPronto').innerHTML=prontos.length?prontos.map(o=>ticketHtml(o, o.tipo==='delivery' ? '<span class="obs">Aguardando saída para entrega</span>' : `<button class="btn blue small" onclick="updateStatus('${o.id}','entregue')">Concluir Pedido</button>`)).join(''):'<div class="empty">Nenhum pronto</div>';
+}
+
+function renderEntregas(){
+  const lista=orders.filter(o=>o.tipo==='delivery'&&(o.status==='pronto'||o.status==='saiu_entrega'));
+  const box=document.getElementById('entregasLista');
+  if(lista.length===0){box.innerHTML='<div class="section-block"><div class="empty">Nenhuma entrega no momento</div></div>';return;}
+  box.innerHTML=lista.map(o=>{
+    const end=o.endereco;
+    const enderecoStr=`${end.rua}, ${end.numero} - ${end.bairro}${end.complemento?' ('+end.complemento+')':''}`;
+    const mapsUrl='https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(enderecoStr);
+    const trocoLinha=o.troco?`<div class="field"><b>Troco para:</b> R$ ${o.troco}</div>`:'';
+    const btn=o.status==='pronto'
+      ? `<button class="btn small" onclick="updateStatus('${o.id}','saiu_entrega')">Saiu para Entrega</button>`
+      : `<button class="btn green small" onclick="updateStatus('${o.id}','entregue')">Pedido Entregue</button>`;
+    return `<div class="deliv-card">
+      <div class="top"><b>#${o.numero} - ${o.cliente}</b><span class="badge ${o.status}">${statusLabel(o.status)}</span></div>
+      <div class="field"><b>Telefone:</b> ${o.telefone}</div>
+      <div class="field"><b>Endereço:</b> ${enderecoStr}</div>
+      <div class="field"><b>Pagamento:</b> ${o.pagamento}</div>
+      ${trocoLinha}
+      <div class="field"><b>Valor:</b> ${fmt(o.total)}</div>
+      <div class="actions" style="margin-top:10px">
+        <a class="btn secondary small" href="${mapsUrl}" target="_blank">Abrir no Google Maps</a>
+        ${btn}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderPedidos(){
+  const filtro=document.getElementById('filtroStatus').value;
+  let lista=orders.slice().sort((a,b)=>b.criadoEm-a.criadoEm);
+  if(filtro)lista=lista.filter(o=>o.status===filtro);
+  document.getElementById('pedidosBody').innerHTML=lista.map(o=>{
+    const itensStr=o.itens.map(i=>i.qtd+'x '+i.nome).join(', ');
+    const hora=new Date(o.criadoEm).toLocaleString('pt-BR');
+    return `<tr><td>#${o.numero}</td><td>${o.tipo==='balcao'?'Balcão':'Delivery'}</td><td>${o.cliente||'-'}</td><td>${itensStr}</td><td>${fmt(o.total)}</td><td><span class="badge ${o.status}">${statusLabel(o.status)}</span></td><td>${hora}</td></tr>`;
+  }).join('') || '<tr><td colspan="7" class="empty">Nenhum pedido encontrado</td></tr>';
+}
+
+function renderGeral(){
+  const hoje=new Date().toDateString();
+  const doDia=orders.filter(o=>new Date(o.criadoEm).toDateString()===hoje);
+  const entreguesHoje=doDia.filter(o=>o.status==='entregue');
+  const faturamento=entreguesHoje.reduce((s,o)=>s+o.total,0);
+  document.getElementById('gFat').textContent=fmt(faturamento);
+  document.getElementById('gQtd').textContent=doDia.length;
+  document.getElementById('gPrep').textContent=orders.filter(o=>o.status==='preparando').length;
+  document.getElementById('gPronto').textContent=orders.filter(o=>o.status==='pronto').length;
+  document.getElementById('gEntrega').textContent=orders.filter(o=>o.status==='saiu_entrega').length;
+  document.getElementById('gTicket').textContent=fmt(entreguesHoje.length?faturamento/entreguesHoje.length:0);
+  const ultimos=orders.slice().sort((a,b)=>b.criadoEm-a.criadoEm).slice(0,6);
+  document.getElementById('gLista').innerHTML=ultimos.length?`<table><thead><tr><th>#</th><th>Tipo</th><th>Cliente</th><th>Total</th><th>Status</th></tr></thead><tbody>${ultimos.map(o=>`<tr><td>#${o.numero}</td><td>${o.tipo==='balcao'?'Balcão':'Delivery'}</td><td>${o.cliente||'-'}</td><td>${fmt(o.total)}</td><td><span class="badge ${o.status}">${statusLabel(o.status)}</span></td></tr>`).join('')}</tbody></table>`:'<div class="empty">Nenhum pedido ainda. Crie um em "Novo Pedido".</div>';
+}
+
+function salvarConfig(){
+  const nome=document.getElementById('cfgNome').value.trim()||'BlackFood';
+  localStorage.setItem('bf_storename',nome);
+  document.querySelector('.brand').innerHTML=nome.replace(/(.*?)(Food|food)?$/,(m,a,b)=>b?`${a}<span>${b}</span>`:m);
+  alert('Nome salvo!');
+}
+async function resetarDados(){
+  if(confirm('Isso vai apagar TODOS os pedidos salvos no Supabase. Deseja continuar?')){
+    const {error}=await sb.from('pedidos').delete().not('id','is',null);
+    if(error){alert('Não foi possível apagar os pedidos no Supabase.');console.error(error);return;}
+    await refreshFromSupabase();
+    alert('Dados apagados.');
+  }
+}
+
+function renderAll(){
+  renderGeral();renderCozinha();renderEntregas();renderPedidos();
+}
+
+function tickClock(){
+  document.getElementById('clock').textContent=new Date().toLocaleString('pt-BR',{weekday:'long',day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+}
+setInterval(tickClock,1000*20);
+tickClock();
+
+// Realtime: quando qualquer dispositivo criar/alterar um pedido, todos atualizam sozinhos
+sb.channel('pedidos-realtime')
+  .on('postgres_changes',{event:'*',schema:'public',table:'pedidos'},()=>{refreshFromSupabase();})
+  .subscribe();
+
+// init
+const savedName=localStorage.getItem('bf_storename');
+if(savedName){document.getElementById('cfgNome').value=savedName;}
+renderProdGrid();renderCart();renderClienteBox();
+setConnStatus('Conectando ao Supabase...');
+refreshFromSupabase();
+</script>
+</body>
+</html>
