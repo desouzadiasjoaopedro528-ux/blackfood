@@ -129,6 +129,7 @@ th{color:var(--muted);font-weight:600;font-size:12.5px;text-transform:uppercase;
     <div class="brand">Black<span>Food</span></div>
     <div class="navbtn active" data-view="geral">📊 Visão Geral</div>
     <div class="navbtn" data-view="novo">➕ Novo Pedido</div>
+    <div class="navbtn" data-view="comandas">🧾 Comandas</div>
     <div class="navbtn" data-view="cozinha">🍳 Cozinha</div>
     <div class="navbtn" data-view="entregas">🛵 Entregas</div>
     <div class="navbtn" data-view="pedidos">📋 Pedidos</div>
@@ -153,6 +154,18 @@ th{color:var(--muted);font-weight:600;font-size:12.5px;text-transform:uppercase;
       </div>
     </section>
 
+    <section id="view-comandas" class="view">
+  <div class="section-block">
+    <h2 style="margin-top:0">🧾 Comandas abertas</h2>
+    <p style="color:var(--muted)">
+      Mesas e clientes com consumo em aberto.
+    </p>
+
+    <div id="comandasLista" class="orders">
+      <div class="empty">Carregando comandas...</div>
+    </div>
+  </div>
+</section>
     <section id="view-novo" class="view">
       <div class="banner" id="novoBanner"></div>
       <div class="toggle-group">
@@ -277,7 +290,40 @@ async function refreshFromSupabase(){
   setConnStatus('');
   renderAll();
 }
+async function carregarComandas(){
+  const lista=document.getElementById('comandasLista');
+  if(!lista)return;
 
+  lista.innerHTML='<div class="empty">Carregando comandas...</div>';
+
+  const {data,error}=await sb
+    .from('comandas')
+    .select('id,numero,cliente_nome,mesa,status,aberta_em')
+    .eq('status','aberta')
+    .order('id',{ascending:false});
+
+  if(error){
+    console.error('Erro ao carregar comandas:',error);
+    lista.innerHTML='<div class="empty">Não foi possível carregar as comandas.</div>';
+    return;
+  }
+
+  if(!data || data.length===0){
+    lista.innerHTML='<div class="empty">Nenhuma comanda aberta.</div>';
+    return;
+  }
+
+  lista.innerHTML=data.map(c=>`
+    <div class="order-card">
+      <div>
+        <strong>Comanda #${c.numero}</strong>
+        <div>${c.cliente_nome || 'Cliente sem nome'}</div>
+        <small>${c.mesa ? 'Mesa '+c.mesa : 'Sem mesa informada'}</small>
+      </div>
+      <span class="badge">${c.status}</span>
+    </div>
+  `).join('');
+}
 function nextNumero(){
   const maiores=orders.map(o=>o.numero||1000);
   return (maiores.length?Math.max(...maiores):1000)+1;
@@ -289,11 +335,11 @@ function showView(id){
   document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
   document.getElementById('view-'+id).classList.add('active');
   document.querySelectorAll('.navbtn').forEach(b=>b.classList.toggle('active',b.dataset.view===id));
-  const titles={geral:'Visão Geral',novo:'Novo Pedido',cozinha:'Cozinha',entregas:'Entregas',pedidos:'Pedidos',config:'Configurações'};
+  const titles={geral:'Visão Geral',novo:'Novo Pedido',comandas:'Comandas',cozinha:'Cozinha',entregas:'Entregas',pedidos:'Pedidos',config:'Configurações'};
   document.getElementById('pageTitle').textContent=titles[id];
   renderAll();
-}
-document.querySelectorAll('.navbtn').forEach(b=>b.addEventListener('click',()=>showView(b.dataset.view)));
+if(id==='comandas')carregarComandas();}
+document.querySelectorAll('.navbtn[data-view]').forEach(b=>b.addEventListener('click',()=>showView(b.dataset.view)));
 
 function setTipo(t){
   tipoAtual=t;
@@ -570,8 +616,8 @@ async function startApp(session){
 
 // ====== PERMISSÕES VISUAIS POR CARGO ======
 const permissoesPorCargo = {
-  admin: ['geral','novo','cozinha','entregas','pedidos','config'],
-  atendente: ['geral','novo','pedidos'],
+admin: ['geral','novo','comandas','cozinha','entregas','pedidos','config'],
+atendente: ['geral','novo','comandas','pedidos'],
   cozinha: ['cozinha'],
   entregador: ['entregas']
 };
