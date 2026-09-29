@@ -406,6 +406,7 @@ function fecharComandaModal(){
 }
 async function adicionarItensComanda(){
   fecharComandaModal();
+  tipoAtual='comanda';
   showView('novo');
 }
 
@@ -499,6 +500,10 @@ function renderClienteBox(){
 async function confirmarPedido(){
   const itens=PRODUTOS.filter(p=>qtyState[p.id]>0).map(p=>({nome:p.nome,preco:p.preco,qtd:qtyState[p.id],obs:obsState[p.id]}));
   if(itens.length===0){alert('Selecione ao menos um produto.');return;}
+  if(tipoAtual==='comanda' && comandaAtualId){
+  alert('Modo adicionar à comanda reconhecido!');
+  return;
+}
   if(!pagamentoAtual){alert('Selecione a forma de pagamento.');return;}
   const total=itens.reduce((s,i)=>s+i.preco*i.qtd,0);
   let cliente=(document.getElementById('cNome')||{}).value||'';
