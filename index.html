@@ -406,10 +406,15 @@ function fecharComandaModal(){
 }
 async function adicionarItensComanda(){
   fecharComandaModal();
+
+  if(!comandaAtualId){
+    alert('Nenhuma comanda selecionada.');
+    return;
+  }
+
   tipoAtual='comanda';
   showView('novo');
 }
-
   
   function nextNumero(){
   const maiores=orders.map(o=>o.numero||1000);
