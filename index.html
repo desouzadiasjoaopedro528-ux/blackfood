@@ -184,9 +184,9 @@ th{color:var(--muted);font-weight:600;font-size:12.5px;text-transform:uppercase;
       <span id="comandaModalTotal">R$ 0,00</span>
     </div>
 
-    <button type="button" class="btn" style="width:100%;margin-top:20px;" disabled>
-      + Adicionar itens
-    </button>
+    <button type="button" class="btn" style="width:100%;margin-top:20px;" onclick="adicionarItensComanda()">
+  + Adicionar itens
+</button>
 
   </div>
 </div>
@@ -402,6 +402,10 @@ document.getElementById('comandaModal').style.display='flex';
 function fecharComandaModal(){
   document.getElementById('comandaModal').style.display='none';
 }
+async function adicionarItensComanda(){
+  alert('Função de adicionar itens conectada com sucesso!');
+}
+
   
   function nextNumero(){
   const maiores=orders.map(o=>o.numero||1000);
