@@ -309,11 +309,121 @@ function setConnStatus(msg,isError){
 }
 
 async function refreshFromSupabase(){
-  const {data,error}=await sb.from('pedidos').select('*').order('criado_em',{ascending:true});
-  if(error){setConnStatus('Erro ao conectar ao Supabase',true);console.error(error);return;}
+  const {data,error}=await sb
+    .from('pedidos')
+    .select('*')
+    .order('criado_em',{ascending:true});
+
+  if(error){
+    setConnStatus('Erro ao conectar ao Supabase',true);
+    console.error(error);
+    return;
+  }
+
   orders=data.map(dbToOrder);
   setConnStatus('');
+
   renderAll();
+
+  // Atualiza também as comandas abertas
+  await carregarComandas();
+
+  // Atualiza a cozinha com os itens das comandas abertas
+  if(typeof carregarCozinhaComandas === 'function'){
+    await carregarCozinhaComandas();
+  }
+}async function carregarCozinhaComandas(){
+  const colNovo = document.getElementById('colNovo');
+  if(!colNovo) return;
+
+  const {data,error} = await sb
+    .from('comanda_itens')
+    .select(`
+      id,
+      comanda_id,
+      nome_produto,
+      quantidade,
+      preco_unitario,
+      observacoes,
+      status,
+      comandas!inner(
+        id,
+        numero,
+        cliente_nome,
+        mesa,
+        status
+      )
+    `)
+    .eq('comandas.status','aberta')
+    .in('status',['pendente','preparando','pronto'])
+    .order('id',{ascending:true});
+
+  if(error){
+    console.error('Erro ao carregar itens das comandas na cozinha:',error);
+    return;
+  }
+
+  const pendentes=(data || []).filter(i=>i.status==='pendente');
+  const preparando=(data || []).filter(i=>i.status==='preparando');
+  const prontos=(data || []).filter(i=>i.status==='pronto');
+
+  const cardItem=(item,botao='')=>{
+    const c=item.comandas || {};
+    return `
+      <div class="ticket">
+        <div class="thead">
+          <span>Comanda #${c.numero || item.comanda_id}</span>
+          <span class="ttype">${c.mesa ? 'Mesa '+c.mesa : 'Balcão'}</span>
+        </div>
+
+        <div style="margin-top:8px">
+          <strong>${item.quantidade}x ${item.nome_produto}</strong>
+          ${item.observacoes ? `<div class="obs">Obs: ${item.observacoes}</div>` : ''}
+        </div>
+
+        <div class="actions">${botao}</div>
+      </div>
+    `;
+  };
+
+  document.getElementById('colNovo').innerHTML =
+    pendentes.length
+      ? pendentes.map(i=>cardItem(
+          i,
+          `<button class="btn small" onclick="updateStatusComandaItem(${i.id},'preparando')">Iniciar preparo</button>`
+        )).join('')
+      : '<div class="empty">Nenhum item novo.</div>';
+
+  document.getElementById('colPrep').innerHTML =
+    preparando.length
+      ? preparando.map(i=>cardItem(
+          i,
+          `<button class="btn green small" onclick="updateStatusComandaItem(${i.id},'pronto')">Concluir item</button>`
+        )).join('')
+      : '<div class="empty">Nenhum item preparando.</div>';
+
+  document.getElementById('colPronto').innerHTML =
+    prontos.length
+      ? prontos.map(i=>cardItem(
+          i,
+          '<span class="obs">✓ Item pronto</span>'
+        )).join('')
+      : '<div class="empty">Nenhum item pronto.</div>';
+}
+
+async function updateStatusComandaItem(id,novoStatus){
+  const {error}=await sb
+    .from('comanda_itens')
+    .update({status:novoStatus})
+    .eq('id',id);
+
+  if(error){
+    console.error('Erro ao atualizar item da comanda:',error);
+    alert('Não foi possível atualizar o item da comanda.');
+    return;
+  }
+
+  await carregarCozinhaComandas();
 }
 async function carregarComandas(){
   const lista=document.getElementById('comandasLista');
