@@ -505,8 +505,33 @@ function renderClienteBox(){
 async function confirmarPedido(){
   const itens=PRODUTOS.filter(p=>qtyState[p.id]>0).map(p=>({nome:p.nome,preco:p.preco,qtd:qtyState[p.id],obs:obsState[p.id]}));
   if(itens.length===0){alert('Selecione ao menos um produto.');return;}
-  if(tipoAtual==='comanda' && comandaAtualId){
-  alert('Modo adicionar à comanda reconhecido!');
+if(tipoAtual==='comanda' && comandaAtualId){
+  const novosItens = itens.map(item => ({
+    comanda_id: comandaAtualId,
+    nome_produto: item.nome,
+    quantidade: item.qtd,
+    preco_unitario: item.preco,
+    observacoes: item.obs || null,
+    status: 'pendente'
+  }));
+
+  const {error} = await sb
+    .from('comanda_itens')
+    .insert(novosItens);
+
+  if(error){
+    console.error('Erro ao adicionar itens à comanda:', error);
+    alert('Não foi possível adicionar os itens à comanda.');
+    return;
+  }
+
+  PRODUTOS.forEach(p => {
+    qtyState[p.id] = 0;
+    obsState[p.id] = '';
+  });
+
+  alert('Itens adicionados à comanda com sucesso!');
+  await abrirComanda(comandaAtualId);
   return;
 }
   if(!pagamentoAtual){alert('Selecione a forma de pagamento.');return;}
