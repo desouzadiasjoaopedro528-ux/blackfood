@@ -183,7 +183,28 @@ th{color:var(--muted);font-weight:600;font-size:12.5px;text-transform:uppercase;
       <span>Total</span>
       <span id="comandaModalTotal">R$ 0,00</span>
     </div>
+<div id="comandaFechamento" style="margin-top:18px;">
+  <label style="display:block;font-weight:700;margin-bottom:8px;">
+    Forma de pagamento
+  </label>
 
+  <select id="comandaFormaPagamento"
+    style="width:100%;padding:12px;border:1px solid #ddd;border-radius:8px;font-size:15px;">
+    <option value="">Selecione...</option>
+    <option value="PIX">PIX</option>
+    <option value="Dinheiro">Dinheiro</option>
+    <option value="Débito">Débito</option>
+    <option value="Crédito">Crédito</option>
+  </select>
+
+  <button
+    type="button"
+    class="btn green"
+    style="width:100%;margin-top:12px;"
+    onclick="fecharComandaAtual()">
+    Fechar comanda
+  </button>
+</div>
     <button type="button" class="btn" style="width:100%;margin-top:20px;" onclick="adicionarItensComanda()">
   + Adicionar itens
 </button>
@@ -513,7 +534,61 @@ document.getElementById('comandaModal').style.display='flex';
 }
 function fecharComandaModal(){
   document.getElementById('comandaModal').style.display='none';
+}async function fecharComandaAtual(){
+  if(!comandaAtualId){
+    alert('Nenhuma comanda selecionada.');
+    return;
+  }
+
+  const formaPagamento = document.getElementById('comandaFormaPagamento').value;
+
+  if(!formaPagamento){
+    alert('Selecione a forma de pagamento.');
+    return;
+  }
+
+  const {data: itens, error: erroItens} = await sb
+    .from('comanda_itens')
+    .select('quantidade,preco_unitario')
+    .eq('comanda_id', comandaAtualId);
+
+  if(erroItens){
+    console.error('Erro ao calcular comanda:', erroItens);
+    alert('Não foi possível calcular a comanda.');
+    return;
+  }
+
+  const total = (itens || []).reduce(
+    (soma,item) => soma + Number(item.quantidade) * Number(item.preco_unitario),
+    0
+  );
+
+  const {error} = await sb
+    .from('comandas')
+    .update({
+      status: 'fechada',
+      forma_pagamento: formaPagamento,
+      valor_total: total,
+      fechado_em: new Date().toISOString()
+    })
+    .eq('id', comandaAtualId);
+
+  if(error){
+    console.error('Erro ao fechar comanda:', error);
+    alert('Não foi possível fechar a comanda.');
+    return;
+  }
+
+  fecharComandaModal();
+  comandaAtualId = null;
+
+  alert('Comanda fechada com sucesso!');
+
+  await carregarComandas();
+  await refreshFromSupabase();
 }
+
+  
 async function adicionarItensComanda(){
   fecharComandaModal();
 
