@@ -752,7 +752,7 @@ if(tipoAtual==='comanda' && comandaAtualId){
     .from('comandas')
     .insert([{
       numero: numero,
-      nome_do_cliente: cliente || null,
+      cliente_nome: cliente || null,
       mesa: null,
       status: 'aberta',
       valor_total: total
