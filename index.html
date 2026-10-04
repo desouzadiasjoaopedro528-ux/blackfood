@@ -767,6 +767,26 @@ if(tipoAtual==='comanda' && comandaAtualId){
   }
 
   console.log('Comanda criada:', novaComanda);
+    const itensComanda = itens.map(item => ({
+  comanda_id: novaComanda.id,
+  nome_produto: item.nome,
+  quantidade: item.qtd,
+  preco_unitario: item.preco,
+  observacoes: item.obs || null,
+  status: 'pendente'
+}));
+
+const { error: erroItensComanda } = await sb
+  .from('comanda_itens')
+  .insert(itensComanda);
+
+if (erroItensComanda) {
+  console.error('Erro ao criar itens da comanda:', erroItensComanda);
+  alert('Pedido criado e comanda aberta, mas houve erro ao adicionar os itens.');
+  return;
+}
+
+console.log('Itens da comanda criados com sucesso.');
 }
   PRODUTOS.forEach(p=>{qtyState[p.id]=0;obsState[p.id]='';});
   const banner=document.getElementById('novoBanner');
