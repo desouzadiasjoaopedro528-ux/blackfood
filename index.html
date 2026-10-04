@@ -747,6 +747,27 @@ if(tipoAtual==='comanda' && comandaAtualId){
   };
   const {error}=await sb.from('pedidos').insert([row]);
   if(error){alert('Não foi possível salvar o pedido no Supabase. Verifique a URL/Key e sua conexão.');console.error(error);return;}
+  if(tipoAtual === 'balcao'){
+  const {data: novaComanda, error: erroComanda} = await sb
+    .from('comandas')
+    .insert([{
+      numero: numero,
+      nome_do_cliente: cliente || null,
+      mesa: null,
+      status: 'aberta',
+      valor_total: total
+    }])
+    .select('id')
+    .single();
+
+  if(erroComanda){
+    console.error('Erro ao criar comanda:', erroComanda);
+    alert('Pedido criado, mas não foi possível criar a comanda.');
+    return;
+  }
+
+  console.log('Comanda criada:', novaComanda);
+}
   PRODUTOS.forEach(p=>{qtyState[p.id]=0;obsState[p.id]='';});
   const banner=document.getElementById('novoBanner');
   banner.textContent='Pedido #'+numero+' criado com sucesso!';
